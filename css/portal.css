@@ -29,6 +29,7 @@ input[type=file] { margin:12px 0; }
 
 .alert { padding:12px 16px; border-radius:4px; margin-bottom:20px; font-size:14px; }
 .alert-success { background:#d4edda; color:#155724; border:1px solid #c3e6cb; }
+.alert-error { background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; }
 
 .recent { font-size:13px; color:#888; }
 .recent table { width:100%; border-collapse:collapse; margin-top:12px; }

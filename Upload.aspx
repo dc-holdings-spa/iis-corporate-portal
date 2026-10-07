@@ -6,13 +6,43 @@ string siteName = ConfigurationManager.AppSettings["SITE_NAME"] ?? "Corporate Po
 string siteTagline = ConfigurationManager.AppSettings["SITE_TAGLINE"] ?? "Document Portal";
 string footerLabel = ConfigurationManager.AppSettings["FOOTER_LABEL"] ?? "Internal Document Management System v3.2.1";
 
+// ── Extension allowlist (business documents only) ─────────────────────
+// This is the CODE-LEVEL defense. The web.config <location path="uploads">
+// section provides a second layer by blocking .aspx/.ashx/.asp at the IIS
+// handler level. The vuln plugin removes BOTH layers.
+string[] allowedExtensions = new string[] {
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".odt", ".ods", ".odp", ".rtf", ".txt", ".csv",
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff",
+    ".zip", ".7z", ".rar"
+};
+const long maxFileSizeBytes = 50L * 1024 * 1024; // 50 MB
+
 string msg = "";
 if (Request.Files.Count > 0) {
     var f = Request.Files[0];
-    var name = Path.GetFileName(f.FileName);
-    var dst = Server.MapPath("~/uploads/" + name);
-    f.SaveAs(dst);
-    msg = "<div class='alert alert-success'>&#10004; Document uploaded successfully: <strong>" + Server.HtmlEncode(name) + "</strong></div>";
+    if (f == null || string.IsNullOrEmpty(f.FileName) || f.ContentLength == 0) {
+        msg = "<div class='alert alert-error'>&#10008; No file selected or file is empty.</div>";
+    } else if (f.ContentLength > maxFileSizeBytes) {
+        msg = "<div class='alert alert-error'>&#10008; File exceeds maximum allowed size (50 MB).</div>";
+    } else {
+        // Path.GetFileName strips directory separators — prevents path traversal
+        var name = Path.GetFileName(f.FileName);
+
+        // Reject names with characters that could cause filesystem issues
+        if (name.IndexOfAny(new char[] { '<', '>', ':', '"', '|', '?', '*' }) >= 0) {
+            msg = "<div class='alert alert-error'>&#10008; File name contains invalid characters.</div>";
+        } else {
+            var ext = Path.GetExtension(name).ToLowerInvariant();
+            if (string.IsNullOrEmpty(ext) || Array.IndexOf(allowedExtensions, ext) < 0) {
+                msg = "<div class='alert alert-error'>&#10008; File type <strong>" + Server.HtmlEncode(ext) + "</strong> is not permitted. Allowed formats: PDF, DOCX, XLSX, PPTX, images, and other business documents.</div>";
+            } else {
+                var dst = Server.MapPath("~/uploads/" + name);
+                f.SaveAs(dst);
+                msg = "<div class='alert alert-success'>&#10004; Document uploaded successfully: <strong>" + Server.HtmlEncode(name) + "</strong></div>";
+            }
+        }
+    }
 }
 %>
 <!DOCTYPE html>
